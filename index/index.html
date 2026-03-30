@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動物 QR Code 挑戰賽</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f0f8ff; padding: 20px; }
+        #game-container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .animal-img { width: 200px; height: 200px; object-fit: cover; border-radius: 10px; margin: 20px 0; border: 5px solid #eee; }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 20px; }
+        .stats { font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 10px; }
+        #msg { font-weight: bold; margin: 10px; min-height: 1.5em; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #4caf50; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>動物辨識大挑戰</h1>
+    
+    <div id="start-screen">
+        <p>請準備好 1(狗), 2(貓), 3(牛), 4(羊) 的 QR Code</p>
+        <button onclick="startGame()">開始遊戲</button>
+    </div>
+
+    <div id="quiz-screen" style="display:none;">
+        <div class="stats">第 <span id="current-idx">1</span> / 10 題 | 得分：<span id="score">0</span></div>
+        <div id="animal-display">
+            <img id="target-image" src="" alt="動物圖片" class="animal-img">
+            <h2 id="target-name">???</h2>
+        </div>
+        <div id="msg"></div>
+        <div id="reader"></div>
+    </div>
+
+    <div id="result-screen" style="display:none;">
+        <h2>遊戲結束！</h2>
+        <p style="font-size: 1.5rem;">你的最終得分：<span id="final-score">0</span> / 10</p>
+        <button onclick="location.reload()">再玩一次</button>
+    </div>
+</div>
+
+<script>
+    const animals = {
+        1: "狗",
+        2: "貓",
+        3: "牛",
+        4: "羊"
+    };
+
+    let quizList = [];
+    let currentIndex = 0;
+    let score = 0;
+    let html5QrCode;
+
+    // 初始化題目：隨機產生 10 題
+    function generateQuiz() {
+        quizList = [];
+        for (let i = 0; i < 10; i++) {
+            const keys = Object.keys(animals);
+            const randomKey = keys[Math.floor(Math.random() * keys.length)];
+            quizList.push(randomKey);
+        }
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        generateQuiz();
+        showQuestion();
+        startScanner();
+    }
+
+    function showQuestion() {
+        if (currentIndex >= 10) {
+            endGame();
+            return;
+        }
+        const currentCode = quizList[currentIndex];
+        document.getElementById('current-idx').innerText = currentIndex + 1;
+        document.getElementById('target-image').src = `assets/images/${currentCode}.png`;
+        document.getElementById('target-name').innerText = `這是什麼動物？`;
+        document.getElementById('msg').innerText = "請掃描對應的 QR Code";
+        document.getElementById('msg').className = "";
+    }
+
+    function startScanner() {
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+    }
+
+    function onScanSuccess(decodedText) {
+        const correctCode = quizList[currentIndex];
+        
+        // 判斷是否正確
+        if (decodedText.trim() === correctCode.toString()) {
+            // 播放音效
+            const audio = new Audio(`assets/audio/${correctCode}.mp3`);
+            audio.play();
+
+            score++;
+            document.getElementById('score').innerText = score;
+            document.getElementById('msg').innerText = "太棒了！答對了！";
+            document.getElementById('msg').className = "success";
+
+            // 暫停掃描一下下，讓玩家看結果，再進下一題
+            html5QrCode.pause();
+            setTimeout(() => {
+                currentIndex++;
+                showQuestion();
+                html5QrCode.resume();
+            }, 2000);
+        } else {
+            document.getElementById('msg').innerText = "不對喔，再試試看！";
+            document.getElementById('msg').className = "error";
+        }
+    }
+
+    function endGame() {
+        if (html5QrCode) {
+            html5QrCode.stop().then(() => {
+                document.getElementById('quiz-screen').style.display = 'none';
+                document.getElementById('result-screen').style.display = 'block';
+                document.getElementById('final-score').innerText = score;
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
